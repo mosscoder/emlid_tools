@@ -26,8 +26,8 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     st_buffer(-buffer) %>% 
     st_transform(crs)
   
-  roi_bb <- roi_poly %>% st_bbox()
-  el_roi <- el_rast %>% crop(roi_poly)
+  el_roi <- el_rast %>% crop(roi_poly) %>% mask(vect(roi_poly))
+  
   el_roi_plt <- el_rast %>% crop(roi_raw)
   
   if(crs == 4326){
@@ -38,12 +38,15 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     y_name <- 'northing'
   }
   
-  corner_gcps <- expand_grid(x = c(roi_bb['xmin'], roi_bb['xmax']),
-                             y = c(roi_bb['ymin'], roi_bb['ymax'])) %>% 
+  corner_gcps <- roi_poly %>% 
+    st_convex_hull() %>% 
+    st_coordinates() %>% 
     as.data.frame() %>% 
-    arrange(-y, x) %>% 
-    mutate(name = c('top_left','top_right','bottom_left','bottom_right')) %>% 
-    rename({{x_name}} := x, {{y_name}} := y) %>% 
+    select(X, Y) %>% 
+    head(-1) %>% 
+    arrange(-Y, X) %>% 
+    mutate(name = paste0('corner_', seq_len(nrow(.)))) %>% 
+    rename({{x_name}} := X, {{y_name}} := Y) %>% 
     select(name, everything()) %>% 
     mutate(elevation = terra::extract(el_rast, .[,2:3])[,2] %>% unlist())
   
@@ -100,6 +103,7 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
   out <- rbind(corner_gcps, el_grad)
   
   gcp_vect <- out %>% st_as_sf(coords=c(x_name,y_name),crs=crs) %>% vect()
+  poly_vect <- roi_raw %>% vect()
   
   if(isTRUE(plt)){
     plot_cols_alpha <- alpha(viridis::viridis(100), 0.3)
@@ -109,16 +113,19 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     plot(hill, col=gray.colors(100), legend=FALSE, axes=FALSE)
     plot(el_roi_plt, col=plot_cols_alpha, legend=T, axes=FALSE, add = T)
     plot(gcp_vect, add = T, pch = 13)
+    plot(poly_vect, border = 'red', add = T, legend=FALSE, axes=FALSE)
   }
   
   return(out)
 }
 
-# ras_path <- '/Users/kdoherty/Downloads/46114f1/MISSOULA_2019_ClrkFrkBttrtRvr/HFDEM/46114f1_HFDEM.tif'
-# garden_path <- '/Users/kdoherty/Downloads/Experimental Garden.kml'
+# setwd('~/Downloads')
+# roi_path <- 'topHouse_SW.kml'
+# ras_path <- './46114f1/MISSOULA_2019_ClrkFrkBttrtRvr/HFDEM/46114f1_HFDEM.tif'
 # 
 # emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
-#                               roi = garden_path, #path to polygon, could be any driver sf accepts
-#                               gcp_num = 12) #target number of GCPs, must be >= 5
-# 
-# write.csv(emlid_gcps, 'gcp_for_emlid_flow.csv', row.names = F)
+#                               roi = roi_path, #path to polygon, could be any driver sf accepts
+#                               gcp_num = 10, #target number of GCPs, must be >= 5
+#                               wt_elevation = 1) #weight of elevation in relation to XY and Y, 1 is equal weighting
+
+#write.csv(emlid_gcps, 'gcp_for_emlid_flow.csv', row.names = F) #saves gcps in format for Emlid Flow
