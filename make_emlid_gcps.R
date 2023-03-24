@@ -79,11 +79,10 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     el_grad <- el_grad %>% 
       as.data.frame() %>% 
       mutate(name = paste0('strat_', round(.[,3]))) %>% 
-      select(name, everything())
+      select(name, everything()) %>% 
+      arrange(-y, x)
     
     colnames(el_grad) <- colnames(corner_gcps)
-    
-    out <- rbind(corner_gcps, el_grad)
   } else {
     print('No viable area outside of corner buffers. Returning ROI center.')
     center_col <- round(ncol(el_roi)/2)
@@ -95,11 +94,11 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     el_grad <- data.frame(name = 'center',
                           x = center_x,
                           y = center_y,
-                          elevation = center_elevation)
+                          elevation = center_elevation) 
     colnames(el_grad) <- colnames(corner_gcps)
-    
-    out <- rbind(corner_gcps, el_grad)
+
   }
+  out <- rbind(corner_gcps, el_grad)
   
   gcp_vect <- out %>% st_as_sf(coords=c(x_name,y_name),crs=crs) %>% vect()
   
