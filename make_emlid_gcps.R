@@ -82,7 +82,6 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
       select(name, everything()) %>% 
       arrange(-y, x)
     
-    colnames(el_grad) <- colnames(corner_gcps)
   } else {
     print('No viable area outside of corner buffers. Returning ROI center.')
     center_col <- round(ncol(el_roi)/2)
@@ -95,9 +94,9 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
                           x = center_x,
                           y = center_y,
                           elevation = center_elevation) 
-    colnames(el_grad) <- colnames(corner_gcps)
-
   }
+  
+  colnames(el_grad) <- colnames(corner_gcps)
   out <- rbind(corner_gcps, el_grad)
   
   gcp_vect <- out %>% st_as_sf(coords=c(x_name,y_name),crs=crs) %>% vect()
@@ -115,9 +114,11 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
   return(out)
 }
 
-ras_path <- '/Users/kdoherty/Downloads/46114f1/MISSOULA_2019_ClrkFrkBttrtRvr/HFDEM/46114f1_HFDEM.tif'
-garden_path <- '/Users/kdoherty/Downloads/Experimental Garden.kml'
-
-emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
-                              roi = garden_path, #path to polygon, could be any driver sf accepts
-                              gcp_num = 12) #target number of GCPs, must be >= 5
+# ras_path <- '/Users/kdoherty/Downloads/46114f1/MISSOULA_2019_ClrkFrkBttrtRvr/HFDEM/46114f1_HFDEM.tif'
+# garden_path <- '/Users/kdoherty/Downloads/Experimental Garden.kml'
+# 
+# emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
+#                               roi = garden_path, #path to polygon, could be any driver sf accepts
+#                               gcp_num = 12) #target number of GCPs, must be >= 5
+# 
+# write.csv(emlid_gcps, 'gcp_for_emlid_flow.csv', row.names = F)
