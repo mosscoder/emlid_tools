@@ -126,6 +126,6 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
 # emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
 #                               roi = roi_path, #path to polygon, could be any driver sf accepts
 #                               gcp_num = 10, #target number of GCPs, must be >= 5
-#                               wt_elevation = 1) #weight of elevation in relation to XY and Y, 1 is equal weighting
+#                               wt_elevation = 1) #weight of elevation in relation to X and Y, 1 is equal weighting
 
 #write.csv(emlid_gcps, 'gcp_for_emlid_flow.csv', row.names = F) #saves gcps in format for Emlid Flow
