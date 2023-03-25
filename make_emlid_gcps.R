@@ -2,34 +2,42 @@ library(terra)
 library(sf)
 library(tidyverse)
 library(scales)
+library(viridis)
 
 select <- dplyr::select
 
 make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=26911, wt_elevation=1, plt=TRUE){
   if(gcp_num < 5) return('You must specify 5 or more GCPs')
   
+  # Read and transform ROI
   roi_raw <- st_read(roi) %>% st_transform(crs)
   
+  # Read DEM raster
   el_rast <- rast(dem)
-  targ_ras_crs <- paste0('epsg:',crs)
+  dem_crs <- crs(el_rast) # Obtain DEM CRS
   
-  if(crs(el_rast) != targ_ras_crs){
-    dem_crs_poly <- roi_raw %>%
-      st_transform(buffer_crs) %>% 
-      st_buffer(100) %>% 
-      st_transform(crs = st_crs(el_rast))
-    el_rast <- project(el_rast %>% crop(dem_crs_poly), targ_ras_crs)
-  }
+  # If CRS of DEM and ROI do not match, reproject DEM
+targ_ras_crs <- paste0('epsg:', crs)
+
+if(terra::crs(el_rast) != targ_ras_crs){
+  dem_crs_poly <- roi_raw %>%
+    st_transform(buffer_crs) %>% 
+    st_buffer(100) %>% 
+    st_transform(crs = terra::crs(el_rast))
+  el_rast <- project(el_rast %>% crop(dem_crs_poly), targ_ras_crs)
+}
   
+  # Buffer and transform ROI
   roi_poly <- roi_raw %>% 
-    st_transform(buffer_crs) %>% #probably need more elegant soltn. here
+    st_transform(buffer_crs) %>% 
     st_buffer(-buffer) %>% 
     st_transform(crs)
   
+  # Crop and mask DEM with ROI
   el_roi <- el_rast %>% crop(roi_poly) %>% mask(vect(roi_poly))
-  
   el_roi_plt <- el_rast %>% crop(roi_raw)
   
+  # Set X and Y coordinate names
   if(crs == 4326){
     x_name <- 'longitude'
     y_name <- 'latitude'
@@ -38,6 +46,7 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     y_name <- 'northing'
   }
   
+  # Extract corner GCPs from ROI
   corner_gcps <- roi_poly %>% 
     st_convex_hull() %>% 
     st_coordinates() %>% 
@@ -55,20 +64,23 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
       rename(`ellipsoidal height` = elevation)
   }
   
+  # Buffer and transform corner GCPs
   corner_buff <- corner_gcps %>% st_as_sf(coords = c(x_name, y_name), crs=crs) %>% 
-    st_transform(buffer_crs) %>% #probably need more elegant soltn. here
+    st_transform(buffer_crs) %>% 
     st_buffer(buffer) %>% 
     st_transform(crs)
   
+  # Mask DEM with corner buffers
   el_nested <- mask(el_roi, corner_buff %>% vect(), inverse = T)
   el_vals <- values(el_nested)
   area_check <- nrow(na.omit(el_vals))
   
+  # If there is a viable area outside of the corner buffers, perform k-means clustering to find additional GCPs
   if(area_check > 0){
     xys <- xyFromCell(el_nested, seq_len(ncell(el_nested)))
     xyzs <- cbind(xys, el_vals)
     xyz_scaled <- scale(na.omit(xyzs))
-    xyz_scaled[,3] <- xyz_scaled[,3]*wt_elevation 
+    xyz_scaled[,3] <- xyz_scaled[,3]*wt_elevation
     
     set.seed(123)
     el_grad <- kmeans(xyz_scaled, centers = gcp_num - 4 )$centers
@@ -105,6 +117,7 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
   gcp_vect <- out %>% st_as_sf(coords=c(x_name,y_name),crs=crs) %>% vect()
   poly_vect <- roi_raw %>% vect()
   
+  # Plot GCPs and DEM if plt is TRUE
   if(isTRUE(plt)){
     plot_cols_alpha <- alpha(viridis::viridis(100), 0.3)
     slope <- terrain(el_roi_plt, "slope", unit="radians")
@@ -116,16 +129,20 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
     plot(poly_vect, border = 'red', add = T, legend=FALSE, axes=FALSE)
   }
   
+  # Return a data frame containing the GCPs, their coordinates, and elevations
   return(out)
 }
 
-# setwd('~/Downloads')
-# roi_path <- 'topHouse_SW.kml'
-# ras_path <- './46114f1/MISSOULA_2019_ClrkFrkBttrtRvr/HFDEM/46114f1_HFDEM.tif'
+# Modify the following lines to run the function with your own input data
+setwd('./')
+roi_path <- '~/Documents/MPG Ranch/Projects/Aerial Survey/Resources/Polygon/topHouse_SW.kml'
+ras_path <- '~/Documents/MPG Ranch/Projects/Aerial Survey/Resources/DEM/46114f1_HFDEM.tif'
 # 
-# emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
-#                               roi = roi_path, #path to polygon, could be any driver sf accepts
-#                               gcp_num = 10, #target number of GCPs, must be >= 5
-#                               wt_elevation = 1) #weight of elevation in relation to X and Y, 1 is equal weighting
-
-#write.csv(emlid_gcps, 'gcp_for_emlid_flow.csv', row.names = F) #saves gcps in format for Emlid Flow
+emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
+                              roi = roi_path, #path to polygon, could be any driver sf accepts
+                              gcp_num = 6, #target number of GCPs, must be >= 5
+                              wt_elevation = 1) #weight of elevation in relation to X and Y, 1
+                        
+# Save GCPs to a CSV file
+output_file <- "../Aerial Survey/Resources/GCP/gcp_for_emlid_flow.csv" # Set the output file name
+write.csv(emlid_gcps, output_file, row.names = F) # Save GCPs to the output file
