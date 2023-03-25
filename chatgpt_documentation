@@ -1,0 +1,26 @@
+This R script is designed to generate Ground Control Points (GCPs) from a digital elevation model (DEM) and a region of interest (ROI) specified by the user. The script uses various libraries such as terra, sf, tidyverse, and scales to accomplish this task.
+
+I will now provide an overview of the main function, make_emlid_gcps, and its input parameters:
+
+dem: Path to the digital elevation model (DEM) file
+roi: Path to the region of interest (ROI) polygon file
+gcp_num: Target number of GCPs (must be greater than or equal to 5)
+crs: Coordinate reference system (default is 4326)
+buffer: Buffer distance around the ROI polygon (default is 30)
+buffer_crs: Coordinate reference system for buffering (default is 26911)
+wt_elevation: Weight of elevation in relation to X and Y (default is 1, equal weighting)
+plt: If set to TRUE, the function will plot the GCPs, DEM, and ROI (default is TRUE)
+The function performs the following main steps:
+
+Read and transform the ROI polygon to the specified CRS.
+Check and reproject the DEM to the target CRS if necessary.
+Transform and buffer the ROI polygon.
+Crop and mask the DEM using the ROI polygon.
+Extract the coordinates of the corners of the ROI polygon and calculate their elevations.
+If there is a viable area outside of the corner buffers, perform k-means clustering to find additional GCPs. Otherwise, return the center of the ROI.
+Combine the corner GCPs with the additional GCPs.
+Optionally plot the GCPs, DEM, and ROI.
+Return a data frame containing the GCPs.
+The script also includes commented code at the end that demonstrates how to use the make_emlid_gcps function and save the generated GCPs to a CSV file.
+
+Note that this script assumes that the input files and libraries are properly installed and loaded in the user's environment.
