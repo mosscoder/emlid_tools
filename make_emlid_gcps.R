@@ -2,6 +2,7 @@ library(terra)
 library(sf)
 library(tidyverse)
 library(scales)
+library(viridis)
 
 select <- dplyr::select
 
@@ -16,13 +17,15 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
   dem_crs <- crs(el_rast) # Obtain DEM CRS
   
   # If CRS of DEM and ROI do not match, reproject DEM
-  if(crs(el_rast) != crs){
-    dem_crs_poly <- roi_raw %>%
-      st_transform(buffer_crs) %>% 
-      st_buffer(100) %>% 
-      st_transform(crs = dem_crs)
-    el_rast <- project(el_rast %>% crop(dem_crs_poly), crs)
-  }
+targ_ras_crs <- paste0('epsg:', crs)
+
+if(terra::crs(el_rast) != targ_ras_crs){
+  dem_crs_poly <- roi_raw %>%
+    st_transform(buffer_crs) %>% 
+    st_buffer(100) %>% 
+    st_transform(crs = terra::crs(el_rast))
+  el_rast <- project(el_rast %>% crop(dem_crs_poly), targ_ras_crs)
+}
   
   # Buffer and transform ROI
   roi_poly <- roi_raw %>% 
@@ -130,16 +133,16 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
   return(out)
 }
 
-Modify the following lines to run the function with your own input data
+# Modify the following lines to run the function with your own input data
 setwd('./')
 roi_path <- '~/Documents/MPG Ranch/Projects/Aerial Survey/Resources/Polygon/topHouse_SW.kml'
 ras_path <- '~/Documents/MPG Ranch/Projects/Aerial Survey/Resources/DEM/46114f1_HFDEM.tif'
 # 
 emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
                               roi = roi_path, #path to polygon, could be any driver sf accepts
-                              gcp_num = 10, #target number of GCPs, must be >= 5
+                              gcp_num = 6, #target number of GCPs, must be >= 5
                               wt_elevation = 1) #weight of elevation in relation to X and Y, 1
                         
 # Save GCPs to a CSV file
-output_file <- "gcp_for_emlid_flow.csv" # Set the output file name
+output_file <- "../Aerial Survey/Resources/GCP/gcp_for_emlid_flow.csv" # Set the output file name
 write.csv(emlid_gcps, output_file, row.names = F) # Save GCPs to the output file
