@@ -130,12 +130,16 @@ make_emlid_gcps <- function(dem, roi, gcp_num, crs=4326, buffer=30, buffer_crs=2
   return(out)
 }
 
-# Uncomment and modify the following lines to run the function with your own input data
-# setwd('~/Downloads')
-# roi_path <- 'topHouse_SW.kml'
-# ras_path <- './46114f1/MISSOULA_2019_ClrkFrkBttrtRvr/HFDEM/46114f1_HFDEM.tif'
+Modify the following lines to run the function with your own input data
+setwd('./')
+roi_path <- '~/Documents/MPG Ranch/Projects/Aerial Survey/Resources/Polygon/topHouse_SW.kml'
+ras_path <- '~/Documents/MPG Ranch/Projects/Aerial Survey/Resources/DEM/46114f1_HFDEM.tif'
 # 
-# emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
-#                               roi = roi_path, #path to polygon, could be any driver sf accepts
-#                               gcp_num = 10, #target number of GCPs, must be >= 5
-#                               wt_elevation = 1) #weight of elevation in relation to X and Y, 1
+emlid_gcps <- make_emlid_gcps(dem = ras_path, #path to elevation model
+                              roi = roi_path, #path to polygon, could be any driver sf accepts
+                              gcp_num = 10, #target number of GCPs, must be >= 5
+                              wt_elevation = 1) #weight of elevation in relation to X and Y, 1
+                        
+# Save GCPs to a CSV file
+output_file <- "gcp_for_emlid_flow.csv" # Set the output file name
+write.csv(emlid_gcps, output_file, row.names = F) # Save GCPs to the output file
